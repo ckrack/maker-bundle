@@ -24,7 +24,7 @@ use Symfony\Bundle\MakerBundle\Renderer\FormTypeRenderer;
 use Symfony\Bundle\MakerBundle\Str;
 use Symfony\Bundle\MakerBundle\Validator;
 use Symfony\Bundle\TwigBundle\TwigBundle;
-use Symfony\Component\BrowserKit\Client;
+use Symfony\Component\BrowserKit\AbstractBrowser;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -141,12 +141,6 @@ final class MakeCrud extends AbstractMaker
         $routeName = Str::asRouteName($controllerClassDetails->getRelativeNameWithoutSuffix());
         $templatesPath = Str::asFilePath($controllerClassDetails->getRelativeNameWithoutSuffix());
 
-        $testClassDetails = $generator->createClassNameDetails(
-            $entityClassDetails->getRelativeNameWithoutSuffix(),
-            'Test\\Controller\\',
-            'ControllerTest'
-        );
-
         $generator->generateController(
             $controllerClassDetails->getFullName(),
             'crud/controller/Controller.tpl.php',
@@ -166,19 +160,6 @@ final class MakeCrud extends AbstractMaker
                 ],
                 $repositoryVars
             )
-        );
-
-        $generator->generateFile(
-            'tests/Controller/'.$testClassDetails->getShortName().'.php',
-            'crud/test/Test.tpl.php',
-            [
-                'entity_class_name' => $entityClassDetails->getShortName(),
-                'route_path' => Str::asRoutePath($controllerClassDetails->getRelativeNameWithoutSuffix()),
-                'route_name' => $routeName,
-                'class_name' => Str::getShortClassName($testClassDetails->getFullName()),
-                'namespace' => Str::getNamespace($testClassDetails->getFullName()),
-                'form_fields' => $entityDoctrineDetails->getFormFields(),
-            ]
         );
 
         $this->formTypeRenderer->render(
@@ -229,6 +210,30 @@ final class MakeCrud extends AbstractMaker
             );
         }
 
+        if (class_exists(CssSelectorConverter::class) && class_exists(AbstractBrowser::class)) {
+            $testClassDetails = $generator->createClassNameDetails(
+                $entityClassDetails->getRelativeNameWithoutSuffix(),
+                'Test\\Controller\\',
+                'ControllerTest'
+            );
+
+            $generator->generateFile(
+                'tests/Controller/'.$testClassDetails->getShortName().'.php',
+                'crud/test/Test.tpl.php',
+                [
+                    'entity_class_name' => $entityClassDetails->getShortName(),
+                    'route_path' => Str::asRoutePath($controllerClassDetails->getRelativeNameWithoutSuffix()),
+                    'route_name' => $routeName,
+                    'class_name' => Str::getShortClassName($testClassDetails->getFullName()),
+                    'namespace' => Str::getNamespace($testClassDetails->getFullName()),
+                    'form_fields' => $entityDoctrineDetails->getFormFields(),
+                ]
+            );
+        } else {
+            var_dump(CssSelectorConverter::class, class_exists(CssSelectorConverter::class), AbstractBrowser::class, class_exists(AbstractBrowser::class));
+            $io->note('Skipping test generation because the test dependencies (css-selector and browser-kit) are not installed.');
+        }
+
         $generator->writeChanges();
 
         $this->writeSuccessMessage($io);
@@ -274,16 +279,6 @@ final class MakeCrud extends AbstractMaker
         $dependencies->addClassDependency(
             ParamConverter::class,
             'annotations'
-        );
-
-        $dependencies->addClassDependency(
-            CssSelectorConverter::class,
-            'css-selector'
-        );
-
-        $dependencies->addClassDependency(
-            Client::class,
-            'browser-kit'
         );
     }
 
